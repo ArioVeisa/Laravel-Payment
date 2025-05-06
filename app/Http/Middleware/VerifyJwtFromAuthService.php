@@ -15,8 +15,9 @@ class VerifyJwtFromAuthService
             return response()->json(['error' => 'Token missing'], 401);
         }
 
-        // Validasi token ke AuthService
-        $response = Http::withToken($token)->get('http://127.0.0.1:8000/api/users/me');
+        // Validasi token ke AuthService menggunakan environment variable
+        $authServiceUrl = env('AUTH_SERVICE_URL', 'http://auth-service:9000');
+        $response = Http::withToken($token)->get($authServiceUrl . '/api/users/me');
 
         if (!$response->ok()) {
             return response()->json(['error' => 'Unauthorized'], 401);
