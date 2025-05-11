@@ -157,4 +157,55 @@ class PaymentController extends Controller
             'data' => $payments
         ]);
     }
+
+    public function createPayment(Request $request)
+    {
+        try {
+            // Validasi request
+            $request->validate([
+                'order_id' => 'required|integer',
+                'amount' => 'required|numeric|min:0',
+                'payment_method' => 'required|string|in:credit_card,bank_transfer,e_wallet'
+            ]);
+
+            // Debug log untuk request
+            Log::info('Payment request:', [
+                'order_id' => $request->order_id,
+                'amount' => $request->amount,
+                'payment_method' => $request->payment_method,
+                'order_service_url' => $this->orderServiceUrl
+            ]);
+
+            // Verifikasi ke OrderService
+            $orderResponse = Http::timeout(30)
+                ->get("{$this->orderServiceUrl}/api/orders/" . $request->order_id);
+
+            // Debug log untuk response OrderService
+            Log::info('OrderService response:', [
+                'status' => $orderResponse->status(),
+                'body' => $orderResponse->json(),
+                'url' => "{$this->orderServiceUrl}/api/orders/" . $request->order_id
+            ]);
+
+            if (!$orderResponse->ok()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order ID not valid in OrderService',
+                    'error' => $orderResponse->json()
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error connecting to OrderService:', [
+                'error' => $e->getMessage(),
+                'url' => "{$this->orderServiceUrl}/api/orders/" . $request->order_id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to connect to OrderService',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
